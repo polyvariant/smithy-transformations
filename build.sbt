@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.1"
+ThisBuild / tlBaseVersion := "1.0"
 ThisBuild / organization := "org.polyvariant.smithy-transformations"
 ThisBuild / organizationName := "Polyvariant"
 ThisBuild / startYear := Some(2026)
