@@ -20,84 +20,270 @@ import munit.FunSuite
 import software.amazon.smithy.build.TransformContext
 import software.amazon.smithy.diff.ModelDiff
 import software.amazon.smithy.model.Model
-import software.amazon.smithy.model.loader.IdlTokenizer
 import software.amazon.smithy.model.loader.ModelAssembler
-import software.amazon.smithy.model.shapes.SmithyIdlModelSerializer
-import software.amazon.smithy.syntax
-import software.amazon.smithy.syntax.TokenTree
 
-import java.nio.file.Paths
 import scala.jdk.CollectionConverters.*
 
 class AddOperationsTest extends FunSuite {
 
   test("basic: adds @addOperations targets to the service's operations") {
-    transformationComparisonTest(os.sub / "addOperations" / "basic")
+    transformationComparisonTest(
+      input =
+        """|$version: "2"
+           |
+           |namespace example
+           |
+           |use smithytransformations#addOperations
+           |
+           |@addOperations([Another])
+           |service MyService {
+           |    operations: [A]
+           |}
+           |
+           |operation A {}
+           |operation Another {}
+           |""".stripMargin,
+      expected =
+        """|$version: "2"
+           |
+           |namespace example
+           |
+           |use smithytransformations#addOperations
+           |
+           |@addOperations([Another])
+           |service MyService {
+           |    operations: [A, Another]
+           |}
+           |
+           |operation A {}
+           |operation Another {}
+           |""".stripMargin,
+    )
+  }
+
+  test("cross-namespace: @addOperations resolves operations from a different namespace") {
+    val otherNs =
+      """|$version: "2"
+         |
+         |namespace other
+         |
+         |operation Another {}
+         |""".stripMargin
+    transformationComparisonTestMulti(
+      input = Seq(
+        """|$version: "2"
+           |
+           |namespace example
+           |
+           |use smithytransformations#addOperations
+           |use other#Another
+           |
+           |@addOperations([Another])
+           |service MyService {
+           |    operations: [A]
+           |}
+           |
+           |operation A {}
+           |""".stripMargin,
+        otherNs,
+      ),
+      expected = Seq(
+        """|$version: "2"
+           |
+           |namespace example
+           |
+           |use smithytransformations#addOperations
+           |use other#Another
+           |
+           |@addOperations([Another])
+           |service MyService {
+           |    operations: [A, Another]
+           |}
+           |
+           |operation A {}
+           |""".stripMargin,
+        otherNs,
+      ),
+    )
+  }
+
+  test("empty: @addOperations([]) is a no-op") {
+    val model =
+      """|$version: "2"
+         |
+         |namespace example
+         |
+         |use smithytransformations#addOperations
+         |
+         |@addOperations([])
+         |service MyService {
+         |    operations: [A]
+         |}
+         |
+         |operation A {}
+         |""".stripMargin
+    transformationComparisonTest(input = model, expected = model)
   }
 
   test("apply: a second `apply ... @addOperations(...)` is concatenated with the original") {
-    transformationComparisonTest(os.sub / "addOperations" / "apply")
+    transformationComparisonTest(
+      input =
+        """|$version: "2"
+           |
+           |namespace example
+           |
+           |use smithytransformations#addOperations
+           |
+           |@addOperations([Another])
+           |service MyService {
+           |    operations: [A]
+           |}
+           |
+           |apply MyService @addOperations([Third])
+           |
+           |operation A {}
+           |operation Another {}
+           |operation Third {}
+           |""".stripMargin,
+      expected =
+        """|$version: "2"
+           |
+           |namespace example
+           |
+           |use smithytransformations#addOperations
+           |
+           |@addOperations([Another, Third])
+           |service MyService {
+           |    operations: [A, Another, Third]
+           |}
+           |
+           |operation A {}
+           |operation Another {}
+           |operation Third {}
+           |""".stripMargin,
+    )
   }
 
-  private def transformationComparisonTest(directory: os.SubPath) = {
+  private def transformationComparisonTest(input: String, expected: String): Unit =
+    transformationComparisonTestMulti(Seq(input), Seq(expected))
+
+  private def transformationComparisonTestMulti(
+    input: Seq[String],
+    expected: Seq[String],
+  ): Unit = {
     val result = new AddOperations().transform(
       TransformContext
         .builder()
-        .model(loadModel(os.resource / "smithy" / directory / "input.smithy"))
+        .model(loadModel(input*))
         .build()
     )
 
-    val expected = loadModel(os.resource / "smithy" / directory / "expected.smithy")
     val diff =
       ModelDiff
         .builder()
-        .oldModel(expected)
+        .oldModel(loadModel(expected*))
         .newModel(result)
         .compare()
         .getDiffEvents
         .asScala
         .toList
 
-    val actualFile =
-      os.pwd / "tests" / "src" / "test" / "resources" / "smithy" / directory / "actual.smithy"
-
-    if (diff.nonEmpty) {
-      os.write
-        .over(
-          actualFile,
-          format(
-            SmithyIdlModelSerializer
-              .builder()
-              .build()
-              .serialize(result)
-              .get(Paths.get("sample.smithy"))
-          ),
-        )
-      println(s"wrote actual contents to $actualFile")
-    } else if (os.exists(actualFile)) {
-      os.remove(actualFile): Unit
-    }
-
     assert(diff.isEmpty, diff.map(_.toString).mkString("\n"))
   }
 
-  private def format(string: String): String = {
-    val tokenizer = IdlTokenizer.create(string)
-    val tree = TokenTree.of(tokenizer)
-    syntax.Formatter.format(tree)
+  test("validation: target shape must be an operation") {
+    val errors = validationErrorsFor(
+      """|$version: "2"
+         |
+         |namespace example
+         |
+         |use smithytransformations#addOperations
+         |
+         |@addOperations([NotAnOperation])
+         |service MyService {
+         |    operations: [A]
+         |}
+         |
+         |operation A {}
+         |
+         |structure NotAnOperation {}
+         |""".stripMargin
+    )
+    assert(
+      errors.exists(_.contains("NotAnOperation")),
+      errors.mkString("\n"),
+    )
   }
 
-  private def loadModel(resources: os.ResourcePath*): Model = {
+  test("validation: @addOperations cannot be applied to a non-service shape") {
+    val errors = validationErrorsFor(
+      """|$version: "2"
+         |
+         |namespace example
+         |
+         |use smithytransformations#addOperations
+         |
+         |@addOperations([A])
+         |structure NotAService {}
+         |
+         |operation A {}
+         |""".stripMargin
+    )
+    assert(
+      errors.exists(_.contains("addOperations")),
+      errors.mkString("\n"),
+    )
+  }
+
+  test("validation: target shape must exist") {
+    val errors = validationErrorsFor(
+      """|$version: "2"
+         |
+         |namespace example
+         |
+         |use smithytransformations#addOperations
+         |
+         |@addOperations([DoesNotExist])
+         |service MyService {
+         |    operations: [A]
+         |}
+         |
+         |operation A {}
+         |""".stripMargin
+    )
+    assert(
+      errors.exists(_.contains("DoesNotExist")),
+      errors.mkString("\n"),
+    )
+  }
+
+  private def loadModel(contents: String*): Model = {
     val assembler = Model
       .assembler()
       .discoverModels()
       .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
-
-    resources.foreach { res =>
-      assembler.addImport(this.getClass.getClassLoader.getResource(res.segments.mkString("/")))
+    contents.zipWithIndex.foreach { case (c, i) =>
+      assembler.addUnparsedModel(s"test-$i.smithy", c)
     }
-
     assembler.assemble().unwrap()
+  }
+
+  private def validationErrorsFor(content: String): List[String] = {
+    import software.amazon.smithy.model.validation.Severity
+    val result = Model
+      .assembler()
+      .discoverModels()
+      .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
+      .addUnparsedModel("test.smithy", content)
+      .assemble()
+    val errors = result
+      .getValidationEvents
+      .asScala
+      .toList
+      .filter(_.getSeverity == Severity.ERROR)
+      .map(_.getMessage)
+    assert(errors.nonEmpty, "expected validation errors but got none")
+    errors
   }
 
 }

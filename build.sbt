@@ -55,10 +55,7 @@ lazy val tests = project
   .settings(
     commonSettings,
     libraryDependencies ++= Seq(
-      "software.amazon.smithy" % "smithy-build" % smithyVersion,
-      "software.amazon.smithy" % "smithy-syntax" % smithyVersion,
-      "software.amazon.smithy" % "smithy-diff" % smithyVersion % Test,
-      "com.lihaoyi" %% "os-lib" % "0.11.8" % Test,
+      "software.amazon.smithy" % "smithy-diff" % smithyVersion % Test
     ),
     publish / skip := true,
   )
