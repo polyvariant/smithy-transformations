@@ -5,6 +5,7 @@ A collection of reusable [Smithy](https://smithy.io/) `ProjectionTransformer`s, 
 Currently provides:
 
 - [`@addOperations`](#addoperations) — append operations to an existing service.
+- [`@addMembers`](#addmembers) — append members to an existing aggregate shape (structure or union).
 
 This transformation exists as a workaround / replacement for [smithy-lang/smithy#3105](https://github.com/smithy-lang/smithy/issues/3105).
 
@@ -49,7 +50,8 @@ The transformation is registered as a `software.amazon.smithy.build.ProjectionTr
   "projections": {
     "default": {
       "transforms": [
-        { "name": "addOperations" }
+        { "name": "addOperations" },
+        { "name": "addMembers" }
       ]
     }
   }
@@ -89,3 +91,43 @@ operation Another {}
 ```
 
 After the `addOperations` transformer runs, `MyService.operations` becomes `[A, Another]`. You can have multiple `apply MyService @addOperations(...)` blocks across files — Smithy's loader [concatenates](https://smithy.io/2.0/spec/model.html#trait-conflict-resolution) them, so several consumers can each contribute their own operations.
+
+## `addMembers`
+
+Given an upstream aggregate shape (structure or union) you don't own:
+
+```smithy
+// upstream.smithy — provided by someone else
+$version: "2"
+
+namespace example
+
+structure MyStruct {
+    original: String
+}
+```
+
+attach `@addMembers` from your own file to append members to it:
+
+```smithy
+// ours.smithy
+$version: "2"
+
+namespace example
+
+use smithytransformations#addMembers
+
+apply MyStruct @addMembers([
+    { name: "extra", target: String }
+    {
+        name: "withTraits"
+        target: Integer
+        traits: {
+            "smithy.api#required": {}
+            "smithy.api#documentation": "added by addMembers"
+        }
+    }
+])
+```
+
+After the `addMembers` transformer runs, `MyStruct` has the original `original` member plus `extra: String` and a required `withTraits: Integer` with documentation. Each entry is `{ name, target, traits? }`; `traits` is an optional map from trait shape id to that trait's node value. The selector accepts both structures and unions, and multiple `apply ... @addMembers(...)` blocks are concatenated like `@addOperations`.
