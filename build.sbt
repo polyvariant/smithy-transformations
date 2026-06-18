@@ -28,7 +28,7 @@ val commonSettings = Seq(
     "-Wnonunit-statement",
   ),
   libraryDependencies ++= Seq(
-    "org.scalameta" %%% "munit" % "1.3.0" % Test
+    "org.scalameta" %%% "munit" % "1.3.3" % Test
   ),
 )
 
