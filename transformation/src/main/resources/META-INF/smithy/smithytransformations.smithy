@@ -38,7 +38,7 @@ map TraitMap {
 
 /// Selectors matching the trait definition shapes whose traits should be stripped off
 /// every shape in the model, e.g. `[trait|trait][id|namespace = 'smithy.rules']`.
-@metadata(key: "removeTraits")
+@metadata(key: "smithytransformations#removeTraits")
 list RemoveTraits {
     member: RemoveTraitsSelector
 }

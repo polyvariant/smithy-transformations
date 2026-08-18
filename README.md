@@ -136,14 +136,16 @@ After the `addMembers` transformer runs, `MyStruct` has the original `original` 
 
 ## `removeTraits`
 
-Unlike the others, this one isn't driven by a trait — it's model-wide, so there's no shape to attach it to. It's configured by the `removeTraits` metadata key, whose type is declared with Smithy's [`@metadata` trait](https://smithy.io/2.0/spec/model.html#metadata-trait), so the value is validated as part of loading the model.
+Unlike the others, this one isn't driven by a trait — it's model-wide, so there's no shape to attach it to. It's configured by the `smithytransformations#removeTraits` metadata key, whose type is declared with Smithy's [`@metadata` trait](https://smithy.io/2.0/spec/model.html#metadata-trait), so the value is validated as part of loading the model.
+
+Metadata keys are plain strings — Smithy attaches no namespace meaning to the `#`. It's qualified here purely to avoid collisions: metadata is merged across every model loaded together, so a bare `removeTraits` would clash with any other library that picked the same word. (The transformer's *name*, used in `smithy4sModelTransformers` and `smithy-build.json`, is just `removeTraits`.)
 
 Each entry is a [selector](https://smithy.io/2.0/spec/selectors.html) matching the **trait definition shapes** to strip:
 
 ```smithy
 $version: "2"
 
-metadata "removeTraits" = [
+metadata "smithytransformations#removeTraits" = [
     "[trait|trait][id|namespace = 'smithy.rules']"  // every trait in the namespace
     "[id = 'smithy.api#deprecated']"                // just this one trait
 ]

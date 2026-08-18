@@ -32,7 +32,7 @@ class RemoveTraitsTest extends FunSuite {
         customTraits,
         """|$version: "2"
            |
-           |metadata "removeTraits" = ["[trait|trait][id|namespace = 'custom']"]
+           |metadata "smithytransformations#removeTraits" = ["[trait|trait][id|namespace = 'custom']"]
            |
            |namespace example
            |
@@ -52,7 +52,7 @@ class RemoveTraitsTest extends FunSuite {
         customTraits,
         """|$version: "2"
            |
-           |metadata "removeTraits" = ["[trait|trait][id|namespace = 'custom']"]
+           |metadata "smithytransformations#removeTraits" = ["[trait|trait][id|namespace = 'custom']"]
            |
            |namespace example
            |
@@ -71,7 +71,7 @@ class RemoveTraitsTest extends FunSuite {
         customTraits,
         """|$version: "2"
            |
-           |metadata "removeTraits" = ["[id = 'custom#alpha']"]
+           |metadata "smithytransformations#removeTraits" = ["[id = 'custom#alpha']"]
            |
            |namespace example
            |
@@ -89,7 +89,7 @@ class RemoveTraitsTest extends FunSuite {
         customTraits,
         """|$version: "2"
            |
-           |metadata "removeTraits" = ["[id = 'custom#alpha']"]
+           |metadata "smithytransformations#removeTraits" = ["[id = 'custom#alpha']"]
            |
            |namespace example
            |
@@ -111,7 +111,7 @@ class RemoveTraitsTest extends FunSuite {
         otherTraits,
         """|$version: "2"
            |
-           |metadata "removeTraits" = ["[trait|trait][id|namespace = 'custom']", "[id = 'other#gamma']"]
+           |metadata "smithytransformations#removeTraits" = ["[trait|trait][id|namespace = 'custom']", "[id = 'other#gamma']"]
            |
            |namespace example
            |
@@ -133,7 +133,7 @@ class RemoveTraitsTest extends FunSuite {
         otherTraits,
         """|$version: "2"
            |
-           |metadata "removeTraits" = ["[trait|trait][id|namespace = 'custom']", "[id = 'other#gamma']"]
+           |metadata "smithytransformations#removeTraits" = ["[trait|trait][id|namespace = 'custom']", "[id = 'other#gamma']"]
            |
            |namespace example
            |
@@ -164,7 +164,7 @@ class RemoveTraitsTest extends FunSuite {
     val model =
       """|$version: "2"
          |
-         |metadata "removeTraits" = []
+         |metadata "smithytransformations#removeTraits" = []
          |
          |namespace example
          |
@@ -180,7 +180,7 @@ class RemoveTraitsTest extends FunSuite {
     val model =
       """|$version: "2"
          |
-         |metadata "removeTraits" = ["[trait|trait][id|namespace = 'nope']"]
+         |metadata "smithytransformations#removeTraits" = ["[trait|trait][id|namespace = 'nope']"]
          |
          |namespace example
          |
@@ -196,7 +196,7 @@ class RemoveTraitsTest extends FunSuite {
     val errors = validationErrorsFor(
       """|$version: "2"
          |
-         |metadata "removeTraits" = "custom"
+         |metadata "smithytransformations#removeTraits" = "custom"
          |
          |namespace example
          |
@@ -204,7 +204,7 @@ class RemoveTraitsTest extends FunSuite {
          |""".stripMargin
     )
     assert(
-      errors.exists(_.contains("removeTraits")),
+      errors.exists(_.contains("smithytransformations#removeTraits")),
       errors.mkString("\n"),
     )
   }
@@ -213,7 +213,7 @@ class RemoveTraitsTest extends FunSuite {
     val errors = validationErrorsFor(
       """|$version: "2"
          |
-         |metadata "removeTraits" = [""]
+         |metadata "smithytransformations#removeTraits" = [""]
          |
          |namespace example
          |
@@ -221,7 +221,7 @@ class RemoveTraitsTest extends FunSuite {
          |""".stripMargin
     )
     assert(
-      errors.exists(_.contains("removeTraits")),
+      errors.exists(_.contains("smithytransformations#removeTraits")),
       errors.mkString("\n"),
     )
   }
@@ -242,7 +242,7 @@ class RemoveTraitsTest extends FunSuite {
            |""".stripMargin,
         """|$version: "2"
            |
-           |metadata "removeTraits" = ["[trait|trait][trait|smithy.api#unstable]"]
+           |metadata "smithytransformations#removeTraits" = ["[trait|trait][trait|smithy.api#unstable]"]
            |
            |namespace example
            |
@@ -270,7 +270,7 @@ class RemoveTraitsTest extends FunSuite {
            |""".stripMargin,
         """|$version: "2"
            |
-           |metadata "removeTraits" = ["[trait|trait][trait|smithy.api#unstable]"]
+           |metadata "smithytransformations#removeTraits" = ["[trait|trait][trait|smithy.api#unstable]"]
            |
            |namespace example
            |
@@ -289,7 +289,7 @@ class RemoveTraitsTest extends FunSuite {
     val model = loadModel(
       """|$version: "2"
          |
-         |metadata "removeTraits" = ["[[[not a selector"]
+         |metadata "smithytransformations#removeTraits" = ["[[[not a selector"]
          |
          |namespace example
          |
