@@ -6,6 +6,7 @@ Currently provides:
 
 - [`@addOperations`](#addoperations) — append operations to an existing service.
 - [`@addMembers`](#addmembers) — append members to an existing aggregate shape (structure or union).
+- [`removeTraits`](#removetraits) — strip traits matching a selector off every shape in the model.
 
 This transformation exists as a workaround / replacement for [smithy-lang/smithy#3105](https://github.com/smithy-lang/smithy/issues/3105).
 
@@ -51,7 +52,8 @@ The transformation is registered as a `software.amazon.smithy.build.ProjectionTr
     "default": {
       "transforms": [
         { "name": "addOperations" },
-        { "name": "addMembers" }
+        { "name": "addMembers" },
+        { "name": "removeTraits" }
       ]
     }
   }
@@ -131,3 +133,28 @@ apply MyStruct @addMembers([
 ```
 
 After the `addMembers` transformer runs, `MyStruct` has the original `original` member plus `extra: String` and a required `withTraits: Integer` with documentation. Each entry is `{ name, target, traits? }`; `traits` is an optional map from trait shape id to that trait's node value. The selector accepts both structures and unions, and multiple `apply ... @addMembers(...)` blocks are concatenated like `@addOperations`.
+
+## `removeTraits`
+
+Unlike the others, this one isn't driven by a trait — it's model-wide, so there's no shape to attach it to. It's configured by the `removeTraits` metadata key, whose type is declared with Smithy's [`@metadata` trait](https://smithy.io/2.0/spec/model.html#metadata-trait), so the value is validated as part of loading the model.
+
+Each entry is a [selector](https://smithy.io/2.0/spec/selectors.html) matching the **trait definition shapes** to strip:
+
+```smithy
+$version: "2"
+
+metadata "removeTraits" = [
+    "[trait|trait][id|namespace = 'smithy.rules']"  // every trait in the namespace
+    "[id = 'smithy.api#deprecated']"                // just this one trait
+]
+
+namespace example
+```
+
+After the `removeTraits` transformer runs, no shape in the model carries a `smithy.rules` trait, nor `@deprecated`. Because entries are selectors rather than plain names, you get the whole grammar — `[trait|trait][trait|smithy.api#unstable]` strips every trait that is itself marked `@unstable`, and so on.
+
+The motivating case: trimming a large AWS model with `@only`/`exclude` removes operations, but the service still carries `smithy.rules#endpointTests` cases referencing them — an ERROR-severity validation failure that suppressions can't downgrade. If you don't generate endpoint rules anyway, dropping the whole `smithy.rules` namespace makes the dangling references disappear.
+
+Note that removal is genuinely model-wide: it applies to the prelude and to every dependency in the model, not just your own shapes. A selector matching `smithy.api#documentation` will strip it from prelude shapes too. Prefer namespaces you own or that you're deliberately discarding.
+
+Remember `[trait|trait]` in the namespace form — without it, `[id|namespace = 'custom']` would also match non-trait shapes in that namespace. That's harmless (only applied traits are ever removed) but the intent reads better with it.

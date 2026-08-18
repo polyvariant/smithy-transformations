@@ -69,7 +69,8 @@ lazy val smithy4sExample = project
       "com.disneystreaming.smithy4s" %%% "smithy4s-core" % smithy4sVersion.value
     ),
     Compile / smithy4sModelTransformers := List(
-      "addOperations"
+      "addOperations",
+      "removeTraits",
     ),
     Compile / smithy4sAllDependenciesAsJars += (transformation / Compile / packageBin).value,
   )

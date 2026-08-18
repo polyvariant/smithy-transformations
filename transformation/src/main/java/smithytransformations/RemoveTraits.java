@@ -20,26 +20,32 @@ import software.amazon.smithy.build.ProjectionTransformer;
 import software.amazon.smithy.build.TransformContext;
 import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.node.Node;
+import software.amazon.smithy.model.node.StringNode;
+import software.amazon.smithy.model.selector.Selector;
 import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
 import software.amazon.smithy.model.traits.Trait;
 import software.amazon.smithy.model.transform.ModelTransformer;
 
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Strips the listed traits off every shape in the model.
+ * Strips traits off every shape in the model.
  *
- * <p>The list is read from the {@code smithytransformations#removeTraits} metadata key, whose shape
- * (and therefore whose validation) is declared with {@code @metadata} in
- * {@code smithytransformations.smithy}. Metadata rather than a trait, because the transformation is
- * model-wide and has no shape to attach itself to.
+ * <p>Configured by the {@code removeTraits} metadata key, whose shape (and therefore whose
+ * validation) is declared with {@code @metadata} in {@code smithytransformations.smithy}. Metadata
+ * rather than a trait, because the transformation is model-wide and has no shape to attach itself
+ * to.
+ *
+ * <p>Each entry is a {@link Selector} matching the <em>trait definition shapes</em> to strip, so the
+ * full selector grammar is available: {@code [trait|trait][id|namespace = 'smithy.rules']} for a
+ * whole namespace, {@code [id = 'smithy.api#deprecated']} for a single trait.
  */
 public final class RemoveTraits implements ProjectionTransformer {
 
     /** Metadata key holding the selectors. Kept in sync with the {@code @metadata} declaration. */
-    static final String METADATA_KEY = "smithytransformations#removeTraits";
+    static final String METADATA_KEY = "removeTraits";
 
     @Override
     public String getName() {
@@ -55,27 +61,21 @@ public final class RemoveTraits implements ProjectionTransformer {
             return model;
         }
 
-        Set<String> namespaces = new LinkedHashSet<>();
-        Set<ShapeId> ids = new LinkedHashSet<>();
-
-        for (String selector : selectorsNode.expectArrayNode().getElementsAs(Node::expectStringNode)
-                .stream().map(node -> node.getValue()).toList()) {
-            if (selector.indexOf('#') < 0) {
-                namespaces.add(selector);
-            } else {
-                ids.add(ShapeId.from(selector));
+        // Resolve the selectors up front: every match is a trait definition shape whose
+        // id we then strip wherever it is applied.
+        Set<ShapeId> ids = new HashSet<>();
+        for (String selector : selectorsNode.expectArrayNode().getElementsAs(StringNode::getValue)) {
+            for (Shape match : Selector.parse(selector).select(model)) {
+                ids.add(match.getId());
             }
         }
 
-        if (namespaces.isEmpty() && ids.isEmpty()) {
+        if (ids.isEmpty()) {
             return model;
         }
 
         return ModelTransformer.create().removeTraitsIf(
             model,
-            (Shape shape, Trait trait) -> {
-                ShapeId id = trait.toShapeId();
-                return ids.contains(id) || namespaces.contains(id.getNamespace());
-            });
+            (Shape shape, Trait trait) -> ids.contains(trait.toShapeId()));
     }
 }

@@ -23,4 +23,10 @@ class MyServiceTest extends FunSuite {
     val endpointNames = MyServiceGen.endpoints.map(_.id.name).toSet
     assertEquals(endpointNames, Set("A", "Another"))
   }
+
+  test("removeTraits strips custom#internal off the A endpoint") {
+    val a = MyServiceGen.endpoints.find(_.id.name == "A").get
+    val internalHints = a.hints.all.filter(_.keyId.toString.startsWith("custom#")).toList
+    assertEquals(internalHints, Nil)
+  }
 }
