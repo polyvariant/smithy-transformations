@@ -33,7 +33,7 @@ import java.util.Set;
 /**
  * Strips traits off every shape in the model.
  *
- * <p>Configured by the {@code removeTraits} metadata key, whose shape (and therefore whose
+ * <p>Configured by the {@code smithytransformations#removeTraits} metadata key, whose shape (and therefore whose
  * validation) is declared with {@code @metadata} in {@code smithytransformations.smithy}. Metadata
  * rather than a trait, because the transformation is model-wide and has no shape to attach itself
  * to.
@@ -45,7 +45,7 @@ import java.util.Set;
 public final class RemoveTraits implements ProjectionTransformer {
 
     /** Metadata key holding the selectors. Kept in sync with the {@code @metadata} declaration. */
-    static final String METADATA_KEY = "removeTraits";
+    static final String METADATA_KEY = "smithytransformations#removeTraits";
 
     @Override
     public String getName() {

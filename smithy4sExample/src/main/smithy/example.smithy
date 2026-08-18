@@ -1,7 +1,7 @@
 $version: "2"
 
 // every trait in the `custom` namespace is stripped from the model before codegen runs
-metadata "removeTraits" = ["[trait|trait][id|namespace = 'custom']"]
+metadata "smithytransformations#removeTraits" = ["[trait|trait][id|namespace = 'custom']"]
 
 namespace example
 
