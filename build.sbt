@@ -10,14 +10,14 @@ ThisBuild / githubWorkflowPublishTargetBranches := Seq(
   RefPredicate.StartsWith(Ref.Tag("v")),
 )
 
-ThisBuild / scalaVersion := "3.8.3"
+ThisBuild / scalaVersion := "3.8.4"
 ThisBuild / tlJdkRelease := Some(17)
 ThisBuild / tlFatalWarnings := false
 ThisBuild / resolvers += Resolver.sonatypeCentralSnapshots
 
 ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 
-val smithyVersion = "1.70.0"
+val smithyVersion = "1.72.1"
 
 val commonSettings = Seq(
   scalacOptions -= "-Xkind-projector:underscores",
@@ -28,7 +28,7 @@ val commonSettings = Seq(
     "-Wnonunit-statement",
   ),
   libraryDependencies ++= Seq(
-    "org.scalameta" %%% "munit" % "1.3.0" % Test
+    "org.scalameta" %%% "munit" % "1.3.4" % Test
   ),
 )
 
