@@ -5,10 +5,14 @@ A collection of reusable [Smithy](https://smithy.io/) `ProjectionTransformer`s, 
 Currently provides:
 
 - [`@addOperations`](#addoperations) — append operations to an existing service.
+- [`@removeOperations`](#removeoperations) — detach operations from an existing service.
 - [`@addMembers`](#addmembers) — append members to an existing aggregate shape (structure or union).
+- [`@removeMembers`](#removemembers) — detach members from an existing aggregate shape.
+- [`@addErrors`](#adderrors) — append errors to an existing operation or service.
+- [`@removeErrors`](#removeerrors) — detach errors from an existing operation or service.
 - [`removeTraits`](#removetraits) — strip traits matching a selector off every shape in the model.
 
-This transformation exists as a workaround / replacement for [smithy-lang/smithy#3105](https://github.com/smithy-lang/smithy/issues/3105).
+These exist as a workaround / replacement for [smithy-lang/smithy#3105](https://github.com/smithy-lang/smithy/issues/3105).
 
 ## Installation
 
@@ -37,13 +41,13 @@ lazy val myProject = project
   )
 ```
 
-`smithy4sModelTransformers` is processed in order — list `addOperations` before any transformer that depends on the final `operations` list.
+`smithy4sModelTransformers` is processed in order — list each transformer before any that depends on the shape of the model it produces. If you use both an `add*` and the matching `remove*` transformer on the same shape, the later one wins for anything they both name.
 
 A working example lives in [`smithy4sExample/`](smithy4sExample/).
 
 ## Use with the Smithy CLI / `smithy-build`
 
-The transformation is registered as a `software.amazon.smithy.build.ProjectionTransformer` SPI, so adding the jar to your build classpath is enough — reference it by name from `smithy-build.json`:
+Each transformation is registered as a `software.amazon.smithy.build.ProjectionTransformer` SPI, so adding the jar to your build classpath is enough — reference them by name from `smithy-build.json`:
 
 ```json
 {
@@ -52,7 +56,11 @@ The transformation is registered as a `software.amazon.smithy.build.ProjectionTr
     "default": {
       "transforms": [
         { "name": "addOperations" },
+        { "name": "removeOperations" },
         { "name": "addMembers" },
+        { "name": "removeMembers" },
+        { "name": "addErrors" },
+        { "name": "removeErrors" },
         { "name": "removeTraits" }
       ]
     }
@@ -94,6 +102,25 @@ operation Another {}
 
 After the `addOperations` transformer runs, `MyService.operations` becomes `[A, Another]`. You can have multiple `apply MyService @addOperations(...)` blocks across files — Smithy's loader [concatenates](https://smithy.io/2.0/spec/model.html#trait-conflict-resolution) them, so several consumers can each contribute their own operations.
 
+## `removeOperations`
+
+The inverse of `@addOperations` — detach operations from a service you don't own:
+
+```smithy
+// ours.smithy
+$version: "2"
+
+namespace example
+
+use smithytransformations#removeOperations
+
+apply MyService @removeOperations([A])
+```
+
+After the `removeOperations` transformer runs, `A` is gone from `MyService.operations`. Only the service's `operations` list is touched — the `A` shape itself stays in the model, so another service can still bind it. Pair it with smithy-build's own [`removeUnusedShapes`](https://smithy.io/2.0/guides/smithy-build-json.html#removeunusedshapes) if you want the now-orphaned operation gone too.
+
+Naming an operation the service doesn't have is ignored rather than an error, which keeps the trait usable against an upstream model that may or may not bind it.
+
 ## `addMembers`
 
 Given an upstream aggregate shape (structure or union) you don't own:
@@ -133,6 +160,88 @@ apply MyStruct @addMembers([
 ```
 
 After the `addMembers` transformer runs, `MyStruct` has the original `original` member plus `extra: String` and a required `withTraits: Integer` with documentation. Each entry is `{ name, target, traits? }`; `traits` is an optional map from trait shape id to that trait's node value. The selector accepts both structures and unions, and multiple `apply ... @addMembers(...)` blocks are concatenated like `@addOperations`.
+
+## `removeMembers`
+
+The inverse of `@addMembers` — detach members from an aggregate shape you don't own:
+
+```smithy
+// ours.smithy
+$version: "2"
+
+namespace example
+
+use smithytransformations#removeMembers
+
+apply MyStruct @removeMembers(["original"])
+```
+
+After the `removeMembers` transformer runs, `MyStruct` no longer has an `original` member. Entries are plain member names, not shape ids, and they're matched **case-insensitively** — matching how Smithy itself treats member name uniqueness. Naming a member the shape doesn't have is ignored rather than an error.
+
+Only the container is rewritten, so removing a member that something else still depends on is your responsibility to avoid — dropping a member referenced by an `@httpLabel` binding or a `@required` contract elsewhere will surface as a validation failure downstream, not here.
+
+## `addErrors`
+
+Both operations and services have an `errors` property, so one trait covers both. On an operation the errors are specific to that operation; on a service they apply to every operation it contains.
+
+Given an upstream operation you don't own:
+
+```smithy
+// upstream.smithy — provided by someone else
+$version: "2"
+
+namespace example
+
+operation A {
+    errors: [ExistingError]
+}
+
+@error("client")
+structure ExistingError {}
+```
+
+attach `@addErrors` from your own file to append errors to it:
+
+```smithy
+// ours.smithy
+$version: "2"
+
+namespace example
+
+use smithytransformations#addErrors
+
+apply A @addErrors([BoomError])
+
+@error("server")
+structure BoomError {}
+```
+
+After the `addErrors` transformer runs, `A.errors` becomes `[ExistingError, BoomError]`. Apply it to a service instead to add an error to every operation at once:
+
+```smithy
+apply MyService @addErrors([BoomError])
+```
+
+Targets must be structures marked with [`@error`](https://smithy.io/2.0/spec/type-refinement-traits.html#error-trait) — the trait's `@idRef` selector enforces that at model-load time, so a typo or a non-error target fails before the transformation runs. Errors already present on the shape are skipped rather than duplicated, so running the transformation twice is a no-op the second time. Multiple `apply ... @addErrors(...)` blocks are concatenated like `@addOperations`.
+
+## `removeErrors`
+
+The inverse of `@addErrors`, on operations and services alike:
+
+```smithy
+// ours.smithy
+$version: "2"
+
+namespace example
+
+use smithytransformations#removeErrors
+
+apply A @removeErrors([ExistingError])
+```
+
+After the `removeErrors` transformer runs, `ExistingError` is gone from `A.errors`. The error structure itself stays in the model — other operations may still declare it. Naming an error the shape doesn't declare is ignored rather than an error.
+
+One asymmetry worth knowing: removing an error from an *operation* cannot cancel out one inherited from the enclosing *service*. Service-level `errors` apply to every operation the service contains and Smithy offers no per-operation opt-out, so if the error comes from the service, remove it from the service.
 
 ## `removeTraits`
 

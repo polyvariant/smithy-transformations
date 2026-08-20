@@ -1,3 +1,7 @@
 smithytransformations.AddOperations
 smithytransformations.AddMembers
 smithytransformations.RemoveTraits
+smithytransformations.AddErrors
+smithytransformations.RemoveErrors
+smithytransformations.RemoveOperations
+smithytransformations.RemoveMembers
