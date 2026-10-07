@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "1.1"
+ThisBuild / tlBaseVersion := "1.2"
 ThisBuild / organization := "org.polyvariant.smithy-transformations"
 ThisBuild / organizationName := "Polyvariant"
 ThisBuild / startYear := Some(2026)
@@ -10,14 +10,14 @@ ThisBuild / githubWorkflowPublishTargetBranches := Seq(
   RefPredicate.StartsWith(Ref.Tag("v")),
 )
 
-ThisBuild / scalaVersion := "3.8.4"
+ThisBuild / scalaVersion := "3.9.0"
 ThisBuild / tlJdkRelease := Some(17)
 ThisBuild / tlFatalWarnings := false
 ThisBuild / resolvers += Resolver.sonatypeCentralSnapshots
 
 ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 
-val smithyVersion = "1.73.0"
+val smithyVersion = "1.74.0"
 
 val commonSettings = Seq(
   scalacOptions -= "-Xkind-projector:underscores",
