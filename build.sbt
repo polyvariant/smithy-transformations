@@ -17,7 +17,7 @@ ThisBuild / resolvers += Resolver.sonatypeCentralSnapshots
 
 ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 
-val smithyVersion = "1.74.1"
+val smithyVersion = "1.75.0"
 
 val commonSettings = Seq(
   scalacOptions -= "-Xkind-projector:underscores",
